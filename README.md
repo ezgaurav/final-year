@@ -9,12 +9,13 @@ A complete Medicine Detection Web Application that uses YOLOv8 model for OCR det
 
 ## 🎯 Features
 
-- **🔍 Search Bar**: Search medicines by name with fuzzy matching
+- **🔍 Smart Search**: Search medicines by name with **semantic vector search** for accurate results
 - **📷 Photo Upload**: Upload medicine images from device
 - **📸 Camera Capture**: Capture medicine photos directly using device camera
 - **🌐 Bilingual Results**: Display medicine info + side effects in **English AND Nepali**
 - **🤖 AI Detection**: YOLOv8 model trained to detect brand name, dosage, and generic name
-- **💊 Medicine Database**: 4000+ medicines with detailed side effects information
+- **💊 Medicine Database**: 11,498 medicines with detailed side effects information
+- **🎯 Vector Search**: ChromaDB-powered semantic search for better medicine matching
 
 ## 🛠️ Tech Stack
 
@@ -23,6 +24,7 @@ A complete Medicine Detection Web Application that uses YOLOv8 model for OCR det
 - **ML Model**: YOLOv8 (Ultralytics) with PyTorch
 - **OCR**: EasyOCR
 - **Database**: JSON (drug_data.json, drug_data2.json)
+- **Vector Database**: ChromaDB for semantic medicine search
 - **Translation**: deep-translator library for Nepali translation
 
 ## 📁 Project Structure
@@ -33,6 +35,8 @@ ezgaurav/final-year/
 │   ├── app.py                 # FastAPI server with all endpoints
 │   ├── model_handler.py       # Load and run YOLO model
 │   ├── database_handler.py    # Read drug database JSON files
+│   ├── vector_db_handler.py   # ChromaDB vector database handler
+│   ├── create_embeddings.py   # Script to create vector embeddings
 │   ├── ocr_handler.py         # Extract text from YOLO bounding boxes
 │   ├── translator.py          # Nepali translation using deep-translator
 │   ├── requirements.txt       # Python dependencies
@@ -98,9 +102,14 @@ cd backend
 # Install dependencies
 pip install -r requirements.txt
 
+# Create vector database embeddings (first time only)
+python create_embeddings.py
+
 # Start the server
 uvicorn app:app --reload --port 8000
 ```
+
+**Note:** The `create_embeddings.py` script creates a vector database for semantic search. This takes 2-5 minutes on first run and creates embeddings for all 11,498 medicines. The embeddings are stored in `backend/chroma_db/` and persist between restarts.
 
 Backend will be available at: http://localhost:8000
 API documentation: http://localhost:8000/docs
@@ -178,8 +187,9 @@ Nepali: "पारासिटामोल ५००mg ट्याब्ले�
 
 Two JSON files containing medicine information:
 
-- `drug_data.json`: 4.6MB, ~2000 medicines
-- `drug_data2.json`: 3.4MB, ~1500 medicines
+- `drug_data.json`: ~11,498 medicines
+- `drug_data2.json`: ~11,498 medicines (mostly duplicates)
+- **Total unique medicines**: 11,498
 
 Each medicine entry contains:
 ```json
@@ -189,6 +199,14 @@ Each medicine entry contains:
   "Side_effects": ["Effect 1", "Effect 2", ...]
 }
 ```
+
+### Vector Search Database
+
+The vector database (`chroma_db/`) provides semantic search capabilities:
+- Uses word-based embedding function for offline operation
+- Searches across medicine names, uses, and side effects
+- Provides better accuracy than simple fuzzy matching
+- Automatically falls back to fuzzy search if vector DB unavailable
 
 ## 🐛 Troubleshooting
 

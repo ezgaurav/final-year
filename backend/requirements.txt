@@ -9,3 +9,4 @@ pillow==10.2.0
 deep-translator==1.11.4
 python-multipart==0.0.6
 numpy==1.26.3
+chromadb>=0.4.0

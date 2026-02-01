@@ -3,6 +3,13 @@ import os
 from typing import Optional, Dict, List
 from difflib import SequenceMatcher
 
+# Try to import vector DB handler
+try:
+    from vector_db_handler import VectorDBHandler
+    VECTOR_DB_AVAILABLE = True
+except ImportError:
+    VECTOR_DB_AVAILABLE = False
+
 class DatabaseHandler:
     def __init__(self):
         self.data_dir = os.path.join(os.path.dirname(__file__), '..', 'data')
@@ -10,6 +17,15 @@ class DatabaseHandler:
         self.drug_data2 = {}
         self.all_medicines = {}
         self.load_databases()
+        
+        # Initialize vector DB if available
+        self.vector_db = None
+        if VECTOR_DB_AVAILABLE:
+            try:
+                self.vector_db = VectorDBHandler(self.data_dir)
+                print("Vector database initialized successfully")
+            except Exception as e:
+                print(f"Vector DB init failed, using fallback: {e}")
     
     def load_databases(self):
         """Load both drug database JSON files"""
@@ -35,26 +51,52 @@ class DatabaseHandler:
             print(f"Error loading databases: {e}")
     
     def search_medicine(self, query: str) -> List[Dict]:
-        """Search for medicines by name with fuzzy matching"""
+        """Search for medicines - uses vector DB if available, fallback to fuzzy"""
+        # Try vector search first
+        if self.vector_db:
+            try:
+                results = self.vector_db.search(query, n_results=5)
+                if results:
+                    return [{"key": r["key"], "data": r["data"], "match_score": 1 - r.get("score", 0)} for r in results]
+            except Exception as e:
+                print(f"Vector search failed: {e}")
+        
+        # Fallback to existing fuzzy search
+        return self._fuzzy_search(query)
+    
+    def _fuzzy_search(self, query: str) -> List[Dict]:
+        """Original fuzzy search method as fallback"""
         query_lower = query.lower()
         results = []
         
         for key, value in self.all_medicines.items():
             medicine_name = value.get('Medicine_name', '').lower()
+            key_lower = key.lower()
             
-            # Exact match
-            if query_lower in medicine_name or medicine_name in query_lower:
+            # Skip empty names
+            if not medicine_name.strip():
+                medicine_name = key_lower
+            
+            # Exact match (check if query is in name or key)
+            if query_lower in medicine_name or query_lower in key_lower:
                 results.append({
                     'key': key,
                     'data': value,
                     'match_score': 1.0
                 })
-            # Fuzzy match
-            elif self.similarity_ratio(query_lower, medicine_name) > 0.6:
+            # Fuzzy match on medicine name
+            elif len(medicine_name) > 0 and self.similarity_ratio(query_lower, medicine_name) > 0.6:
                 results.append({
                     'key': key,
                     'data': value,
                     'match_score': self.similarity_ratio(query_lower, medicine_name)
+                })
+            # Fuzzy match on key
+            elif self.similarity_ratio(query_lower, key_lower) > 0.6:
+                results.append({
+                    'key': key,
+                    'data': value,
+                    'match_score': self.similarity_ratio(query_lower, key_lower)
                 })
         
         # Sort by match score
