@@ -30,6 +30,10 @@ backend/temp_uploads/
 *.png
 *.gif
 
+# ChromaDB data
+chroma_db/
+backend/chroma_db/
+
 # Node
 node_modules/
 npm-debug.log*
