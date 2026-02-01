@@ -1,17 +1,86 @@
 import chromadb
-from chromadb.utils import embedding_functions
 import json
 import os
+import hashlib
+import re
+from typing import List
+
+import chromadb
+import json
+import os
+import hashlib
+import re
+from typing import List
+from collections import Counter
+
+class SimpleEmbeddingFunction:
+    """Simple embedding function that works offline using word-based similarity"""
+    
+    def __init__(self):
+        # Common medicine-related words for better matching
+        self.common_words = {
+            'tablet', 'capsule', 'syrup', 'mg', 'ml', 'injection', 'cream', 'gel',
+            'suspension', 'drops', 'ointment', 'lotion', 'solution', 'powder'
+        }
+    
+    def name(self) -> str:
+        """Return the name of this embedding function"""
+        return "simple_word_embedding"
+    
+    def __call__(self, input: List[str]) -> List[List[float]]:
+        """Generate embeddings for input texts"""
+        embeddings = []
+        for text in input:
+            embedding = self._text_to_embedding(text)
+            embeddings.append(embedding)
+        return embeddings
+    
+    def embed_query(self, input: List[str]) -> List[List[float]]:
+        """Alias for __call__ to support query embedding"""
+        return self.__call__(input)
+    
+    def _text_to_embedding(self, text: str, dim: int = 512) -> List[float]:
+        """Convert text to an embedding vector using word-based approach"""
+        # Normalize text
+        text = text.lower()
+        words = re.findall(r'\w+', text)
+        
+        # Create embedding vector
+        embedding = [0.0] * dim
+        
+        # Get word frequencies
+        word_freq = Counter(words)
+        
+        # Assign each unique word to positions in the embedding
+        for word, freq in word_freq.items():
+            # Skip very common words
+            if word in self.common_words:
+                # Give less weight to common words
+                weight = 0.3 * freq
+            else:
+                # Give more weight to specific words (like medicine names)
+                weight = 1.0 * freq
+            
+            # Hash word to multiple positions for better distribution
+            for i in range(5):  # Use 5 hash functions
+                hash_val = int(hashlib.md5(f"{word}_{i}".encode()).hexdigest(), 16)
+                idx = hash_val % dim
+                embedding[idx] += weight
+        
+        # Normalize the embedding
+        magnitude = sum(x * x for x in embedding) ** 0.5
+        if magnitude > 0:
+            embedding = [x / magnitude for x in embedding]
+        
+        return embedding
 
 class VectorDBHandler:
     def __init__(self, data_path="../data"):
         # Initialize ChromaDB with persistent storage
         self.client = chromadb.PersistentClient(path="./chroma_db")
         
-        # Use sentence-transformers for embeddings (free, runs locally)
-        self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name="all-MiniLM-L6-v2"
-        )
+        # Use custom embedding function (works offline)
+        self.embedding_function = SimpleEmbeddingFunction()
         
         # Create or get collection
         self.collection = self.client.get_or_create_collection(
@@ -69,13 +138,14 @@ class VectorDBHandler:
             ids = []
             
             for med in batch:
-                # Create searchable document text
+                # Create searchable document text - include both key and name
+                # The key often contains the full medicine name including ingredients
                 side_effects_str = ", ".join(med["side_effects"]) if isinstance(med["side_effects"], list) else str(med["side_effects"])
-                doc_text = f"{med['name']} {med['uses']} {side_effects_str}"
+                doc_text = f"{med['id']} {med['name']} {med['uses']} {side_effects_str}"
                 
                 documents.append(doc_text)
                 metadatas.append({
-                    "name": med["name"],
+                    "name": med["name"] if med["name"].strip() else med["id"],
                     "uses": med["uses"],
                     "side_effects": side_effects_str,
                     "raw_data": json.dumps(med["data"])

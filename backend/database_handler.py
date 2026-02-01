@@ -71,20 +71,32 @@ class DatabaseHandler:
         
         for key, value in self.all_medicines.items():
             medicine_name = value.get('Medicine_name', '').lower()
+            key_lower = key.lower()
             
-            # Exact match
-            if query_lower in medicine_name or medicine_name in query_lower:
+            # Skip empty names
+            if not medicine_name.strip():
+                medicine_name = key_lower
+            
+            # Exact match (check if query is in name or key)
+            if query_lower in medicine_name or query_lower in key_lower:
                 results.append({
                     'key': key,
                     'data': value,
                     'match_score': 1.0
                 })
-            # Fuzzy match
-            elif self.similarity_ratio(query_lower, medicine_name) > 0.6:
+            # Fuzzy match on medicine name
+            elif len(medicine_name) > 0 and self.similarity_ratio(query_lower, medicine_name) > 0.6:
                 results.append({
                     'key': key,
                     'data': value,
                     'match_score': self.similarity_ratio(query_lower, medicine_name)
+                })
+            # Fuzzy match on key
+            elif self.similarity_ratio(query_lower, key_lower) > 0.6:
+                results.append({
+                    'key': key,
+                    'data': value,
+                    'match_score': self.similarity_ratio(query_lower, key_lower)
                 })
         
         # Sort by match score
