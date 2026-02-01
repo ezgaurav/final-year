@@ -57,7 +57,7 @@ class DatabaseHandler:
             try:
                 results = self.vector_db.search(query, n_results=5)
                 if results:
-                    return [{"key": r["data"].get("Medicine_name", ""), "data": r["data"], "match_score": 1 - r.get("score", 0)} for r in results]
+                    return [{"key": r["key"], "data": r["data"], "match_score": 1 - r.get("score", 0)} for r in results]
             except Exception as e:
                 print(f"Vector search failed: {e}")
         

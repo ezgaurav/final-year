@@ -4,13 +4,6 @@ import os
 import hashlib
 import re
 from typing import List
-
-import chromadb
-import json
-import os
-import hashlib
-import re
-from typing import List
 from collections import Counter
 
 class SimpleEmbeddingFunction:
@@ -170,7 +163,10 @@ class VectorDBHandler:
         search_results = []
         if results and results['metadatas']:
             for i, metadata in enumerate(results['metadatas'][0]):
+                # Get the ID (key) from results
+                key = results['ids'][0][i] if results['ids'] else ""
                 search_results.append({
+                    "key": key,
                     "name": metadata.get("name", ""),
                     "uses": metadata.get("uses", ""),
                     "side_effects": metadata.get("side_effects", "").split(", "),

@@ -187,9 +187,9 @@ Nepali: "पारासिटामोल ५००mg ट्याब्ले�
 
 Two JSON files containing medicine information:
 
-- `drug_data.json`: 4.6MB, ~2000 medicines
-- `drug_data2.json`: 3.4MB, ~1500 medicines
-- **Total**: 11,498 unique medicines
+- `drug_data.json`: ~11,498 medicines
+- `drug_data2.json`: ~11,498 medicines (mostly duplicates)
+- **Total unique medicines**: 11,498
 
 Each medicine entry contains:
 ```json
